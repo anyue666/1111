@@ -1,136 +1,132 @@
-使用Android运行Klipper，Moonraker，Mainsail / Fuidd和KlipperScreen
-替代版本：https://github.com/gaifeng8864/klipper-on-android（使用流体并简化脚本创建）
-免责声明：这是一项正在进行的工作，仍有一些更改待定。会尽可能尝试更新它。
-@RyanEwen的原创作品（https://gist.github.com/RyanEwen/ae81fc48ad00397f1026915f0e6beed9)
-我拥有的当前设置：带有Klipper固件的Artillery Genius Pro+联想Tab M8运行Klipper+Moonraker+Mainsail+klipperscreen。
-要求
-安装了以下内容的 Android 设备：
+# Using Android to run Klipper, Moonraker, Mainsail/Fuidd, and KlipperScreen
+## Alternative Version: https://github.com/gaifeng8864/klipper-on-android (uses fluidd and simplifies the script creation)
 
-Linux Deploy app： https://play.google.com/store/apps/details?id=ru.meefik.linuxdeploy
-XServer app： https://play.google.com/store/apps/details?id=x.org.server
-Octo4a 应用程序：https://github.com/feelfreelinux/octo4a
-为同一设备启动并运行的OTG + 充电电缆（请查看此视频以供参考：https://www.youtube.com/watch?v=8afFKyIbky0)
+### Disclaimer: this is an ongoing work, still some changes pending. will try to update it when i can.
+#### Original work by @RyanEwen (https://gist.github.com/RyanEwen/ae81fc48ad00397f1026915f0e6beed9)
+#### Current setup i own: Artillery Genius Pro with Klipper Firmware + Lenovo Tab M8 running Klipper+Moonraker+Mainsail+klipperscreen
+## Requirements
+- A rooted Android device with the following installed:
+  - Linux Deploy app: https://play.google.com/store/apps/details?id=ru.meefik.linuxdeploy
+  - XServer app: https://play.google.com/store/apps/details?id=x.org.server
+  - Octo4a app: https://github.com/feelfreelinux/octo4a
+- An OTG+Charge cable up and running for the same device ( please check this video for reference: https://www.youtube.com/watch?v=8afFKyIbky0)
+- An already flashed printer using Klipper firmware. 
+  - For reference : https://3dprintbeginner.com/how-to-install-klipper-on-sidewinder-x2/
 
-使用Klipper固件的已刷新的打印机。
+- Init scripts for Klipper and Moonraker (scripts folder).
+- XTerm script for KlipperScreen (scripts folder).
+ 
+## Setup Instructions
+- Create a container within Linux Deploy using the following settings:
+  - **Bootstrap**:
+    - **Distro**: `Debian` (buster)
+    - **Installation type**: `Directory`  
+    *Note: You can choose `File` but make sure it's large enough as you can't resize it later and 2 GB is not enough.*  
+    - **Installation path**: `/data/local/debian`  
+    *Note: You can choose a different location but if it's within `${EXTERNALDATA}` then SSH may fail to start.*  
+    - **User name**: `android`  
+    *Note: You can choose something else if you make sure to update the scripts, configs and paths in this tutorial accordingly.*  
+  - **INIT**:
+    - **Enable**: `yes`
+    - **Init system**: `sysv`
+  - **SSH**:
+    - **Enable**: `yes`
+  - **GUI**:
+    - **Enable**: `yes`
+    - **Graphics subsystem**: `X11`
+    - **Desktop environment**: `XTerm`
+- SSH into the container.
+- Install Git and KIAUH: 
+  ```bash
+  sudo apt install git
+  git clone https://github.com/th33xitus/kiauh.git
+  ```
+- Install Klipper, Moonraker, Mainsail (or Fluidd), and KlipperScreen:
+  ```bash 
+  kiauh/kiauh.sh
+  ```
+  *Note: KlipperScreen in particular will take a very long time (tens of minutes).*  
+- Find your printer's serial device for use in Klipper's `printer.cfg`:  
+  It will likely be `/dev/ttyACM0` or `/dev/ttyUSB0`. Check if either of those appear/disappear under `/dev/` when plugging/unplugging your printer.  
+  
+  If you cannot find your printer in `/dev/`, then you can check Octo4a app which includes a custom implementation of the CH34x driver. IMPORTANT: You don't need to run OctoPrint within it so once in the main screen of the app just stop it if it's running. To do this:   
+    - Install Octo4a from https://github.com/feelfreelinux/octo4a/releases
+    - Run Octo4a and let it install OctoPrint (optionally tap the Stop button once it's done installing).
+    - Make sure Octo4a sees your printer (it will be listed with a checked-box next to it).
+      - There will be a prompt in your android device asking for permission to connect to your printer if detected.
+    - Now you need to go back to Linux Deploy and edit the container settings:
+      - **MOUNTS**:
+          - **Enable**: `yes`
+          - **Mount points**: press on the "+" button
+            - Source: `/data/data/com.octo4a/files`
+            - Target: `/home/android/octo4a`
+    - `/home/android/octo4a/serialpipe` is the serial port you need to use in your `printer.cfg`
+- Make the serial device accessible to Klipper:
+    ```bash
+    sudo chmod 777 /dev/ttyACM0
+    # or 
+    sudo chmod 777 /dev/ttyUSB0
+    # or 
+    sudo chmod 777 /home/android/octo4a/serialpipe
+    ```
+- Install the init and xterm scripts from this gist:  
+  ```bash
+  sudo wget -O /etc/default/klipper https://raw.githubusercontent.com/d4rk50ul1/klipper-on-android/main/scripts/etc_default_klipper
+  sudo wget -O /etc/init.d/klipper https://raw.githubusercontent.com/d4rk50ul1/klipper-on-android/main/scripts/etc_init.d_klipper
+  sudo wget -O /etc/default/moonraker https://raw.githubusercontent.com/d4rk50ul1/klipper-on-android/main/scripts/etc_default_moonraker
+  sudo wget -O /etc/init.d/moonraker https://raw.githubusercontent.com/d4rk50ul1/klipper-on-android/main/scripts/etc_init.d_moonraker
+  sudo wget -O /usr/local/bin/xterm https://raw.githubusercontent.com/d4rk50ul1/klipper-on-android/main/scripts/usr_local_bin_xterm
+  
+  sudo chmod +x /etc/init.d/klipper 
+  sudo chmod +x /etc/init.d/moonraker 
+  sudo chmod +x /usr/local/bin/xterm
+  
+  sudo update-rc.d klipper defaults
+  sudo update-rc.d moonraker defaults
+  ```
+- Stop the Debian container.
+- Start XServer XSDL.
+    - One time setup: 
+        - Tap 'Change Device Configuration'
+        - Change Mouse Emulation Mode to Desktop, No Emulation
+- Start the Debian container.
+- KlipperScreen should appear in XServer XSDL and Mainsail and/or Fluidd should be accesible using your Android device's IP address in a browser.
 
-供参考 ： https://3dprintbeginner.com/how-to-install-klipper-on-sidewinder-x2/
-Klipper 和 Moonraker 的初始化脚本（脚本文件夹）。
+## Misc
+You can start/stop Klipper and Moonraker manually by using the `service` command (eg: `sudo service start klipper`).  
+Logs can be found in `/home/android/klipper_logs`.
 
-用于 KlipperScreen 的 XTerm 脚本（脚本文件夹）。
+## Telegram Bot
+You can find the instructions how to setup the Telegram Bot [here](https://github.com/d4rk50ul1/klipper-on-android/blob/main/telegram_instructions.md)
 
-设置说明
-使用以下设置在 Linux 部署中创建容器：
-
-引导程序：
-发行版：（破坏者）Debian
-安装类型： 注意：您可以选择“文件”，但请确保它足够大，因为以后无法调整其大小，并且 2 GB 不够。
-Directory
-安装路径： 注意：您可以选择其他位置，但如果它在 ${EXTERNALDATA} 内，则 SSH 可能无法启动。
-/data/local/debian
-用户名： 注意：如果您确保相应地更新本教程中的脚本、配置和路径，则可以选择其他内容。
-android
-初始化：
-启用：yes
-初始化系统：sysv
-SSH：
-启用：yes
-图形用户界面：
-启用：yes
-图形子系统：X11
-桌面环境：XTerm
-通过 SSH 连接到容器。
-
-安装 Git 和 KIAUH：
-
-sudo apt install git
-git clone https://github.com/th33xitus/kiauh.git
-安装 Klipper、Moonraker、Mainsail（或 Fluidd）和 KlipperScreen：
-
-kiauh/kiauh.sh
-注意：特别是KlipperScreen需要很长时间（数十分钟）。
-
-查找打印机的串行设备以在 Klipper 中使用：
-它可能是 或 。检查插入/拔出打印机时是否出现/消失其中任何一个。printer.cfg/dev/ttyACM0/dev/ttyUSB0/dev/
-
-如果在 中找不到您的打印机，则可以检查 Octo4a 应用程序，其中包含 CH34x 驱动程序的自定义实现。重要提示：您不需要在其中运行OctoPrint，因此一旦进入应用程序的主屏幕，只需在它正在运行时停止它。为此：/dev/
-
-从 https://github.com/feelfreelinux/octo4a/releases 安装 Octo4a
-运行Octo4a并让它安装OctoPrint（可选地在完成安装后点击停止按钮）。
-确保Octo4a看到您的打印机（它将在旁边列出一个复选框）。
-如果检测到，您的安卓设备中将出现一个提示，询问是否允许连接到您的打印机。
-现在，您需要返回到 Linux 部署并编辑容器设置：
-坐骑：
-启用：yes
-安装点：按“+”按钮
-源：/data/data/com.octo4a/files
-目标：/home/android/octo4a
-/home/android/octo4a/serialpipe是您需要在printer.cfg
-使串行设备可供 Klipper 访问：
-
-sudo chmod 777 /dev/ttyACM0
-# or 
-sudo chmod 777 /dev/ttyUSB0
-# or 
-sudo chmod 777 /home/android/octo4a/serialpipe
-从以下要点安装 init 和 xterm 脚本：
-
-sudo wget -O /etc/default/klipper https://raw.githubusercontent.com/d4rk50ul1/klipper-on-android/main/scripts/etc_default_klipper
-sudo wget -O /etc/init.d/klipper https://raw.githubusercontent.com/d4rk50ul1/klipper-on-android/main/scripts/etc_init.d_klipper
-sudo wget -O /etc/default/moonraker https://raw.githubusercontent.com/d4rk50ul1/klipper-on-android/main/scripts/etc_default_moonraker
-sudo wget -O /etc/init.d/moonraker https://raw.githubusercontent.com/d4rk50ul1/klipper-on-android/main/scripts/etc_init.d_moonraker
-sudo wget -O /usr/local/bin/xterm https://raw.githubusercontent.com/d4rk50ul1/klipper-on-android/main/scripts/usr_local_bin_xterm
-
-sudo chmod +x /etc/init.d/klipper 
-sudo chmod +x /etc/init.d/moonraker 
-sudo chmod +x /usr/local/bin/xterm
-
-sudo update-rc.d klipper defaults
-sudo update-rc.d moonraker defaults
-停止 Debian 容器。
-
-启动 XServer XSDL。
-
-一次性设置：
-点击“更改设备配置”
-将鼠标仿真模式更改为桌面，无仿真
-启动 Debian 容器。
-
-KlipperScreen应该出现在XServer XSDL中，Mainsail和/或Fluidd应该可以在浏览器中使用Android设备的IP地址访问。
-
-杂项
-您可以使用以下命令手动启动/停止Klipper和Moonraker（例如：）。
-日志可在 中找到。servicesudo service start klipper/home/android/klipper_logs
-
-电报机器人
-您可以在此处找到如何设置电报机器人的说明
-
-故障排除（基于注释的持续部分）
-可能存在这样一种情况，即通过浏览器访问 Mainsail 时，您会收到一条错误消息，并且没有连接到 moonraker：mainsail 在连接到上游时权限被拒绝。要解决此问题，您必须更改文件 ，更改为klipper_logs/mainsail_error.log/etc/nginx/nginx.confuser www-data;user android;
-
-如果几分钟后有人以非 root 用户身份在容器中遇到网络问题，则需要禁用深度睡眠/空闲。您可以通过在 shell 中使用此命令来做到这一点（termux 或 adb 无关紧要）：.您可能还需要此应用程序： [唤醒锁定 - CPU 唤醒] （https://play.google.com/store/apps/details?id=com.dambara.wakelockerdumpsys deviceidle disable)
-
-根据 ZerGo0 评论 - 最新的 moonraker 更新似乎破坏了一些东西。目录和文件位置有一些更改，但您可以使用包含的脚本将新目录符号链接到旧目录：
-
-sudo /etc/init.d/moonraker stop
-cd ~/moonraker
-scripts/data-path-fix.sh
-sudo /etc/init.d/moonraker start
-显然，您也可以手动执行此操作。 您还必须将以下部分添加到您的 ：moonraker.conf
-
-[machine]
-validate_service: False
-validate_config: False
-provider: none
-现在还有一些不推荐使用的设置，请查看通知或 moonraker 文档以了解您需要删除的内容。
-
-检查OTG + Charge电缆时，每部手机都会“识别”不同的电阻器，我的建议是，一旦构建电缆，尽量不要将电阻器直接焊接到5针插头上。相反，使用临时试验板并使用不同的电阻进行测试。我的方法如下：
-
-无需将任何东西连接到微型USB端口（未使用Type-c进行测试） 在手机中打开Octo4a应用程序
-将打印机连接到USB修改后的电缆（假设您已经构建了一根;)）
-将充电器连接到微型 USB 公头端口
-将修改后的电缆连接到手机。
-如果手机检测到充电并且Octo4a显示一个弹出窗口，请求访问串行设备，那么您就完成了！电阻器工作正常。
-如果手机仅检测到充电，而 Octo4a 未显示请求串行访问的弹出窗口，则必须从试验板上卸下电阻器并尝试使用其他电阻器。
-重复此过程，直到弄清楚为止。
-我买了一个电阻器套件，其值从 1k 欧姆到 1M（大约 20 种可能性）。我逐一更改它们，直到它起作用。
-以防有人拥有相同的设备，作为参考。我使用了联想标签M8（TB 8505F），它与10k欧姆电阻器一起工作！
+## Troubleshooting (ongoing section based on comments)
+- There might be the case that when accessing Mainsail through Browser, you get an error message and no connection to moonraker: mainsail Permission denied while connecting to upstream in `klipper_logs/mainsail_error.log`. To fix this you must change the file `/etc/nginx/nginx.conf`, change `user www-data;` to `user android;` 
+- If anyone is having network issues in the container as a non root user after a few minutes, you need to disable deep sleep/idle. You can do that by using this command in a shell (termux or adb doesn't matter): `dumpsys deviceidle disable`. You may also need this app: [Wake Lock - CPU Awake] (https://play.google.com/store/apps/details?id=com.dambara.wakelocker)
+- As per [ZerGo0](https://gist.github.com/ZerGo0) comments - The latest moonraker update seems to break a few things. There are some changes about the directory and file locations, but you can just sym link the new directories to the old ones using the included script: 
+  ```bash
+  sudo /etc/init.d/moonraker stop
+  cd ~/moonraker
+  scripts/data-path-fix.sh
+  sudo /etc/init.d/moonraker start
+  ```
+  You can obviously also do this manually.
+  You also have to add the following section to your `moonraker.conf`:
+  ```bash
+  [machine]
+  validate_service: False
+  validate_config: False
+  provider: none
+  ```
+  There are a few more deprecated settings now, check the notifications or moonraker docs to find out what you need to remove.
+ 
+- When checking the OTG+Charge Cable, each phone "recognizes" a different resistor, my recommendation is that once you build your cable, try not to solder the resistor directly to the 5 pin plug. Instead, use a breadboard temporary and test with different resistors. My approach was the following:
+    - Without connecting anything to the microusb port (not tested with type-c) Open Octo4a app in your mobile
+    - connect the printer to the usb modified cable (assuming that you have already builded one ;) ) 
+    - connect the charger to the microusb male port
+    - connect the modified cable to the mobile phone.
+        - If the phone detects charge and Octo4a shows a popup requesting access to a serial device, you're done! the resistor is working. 
+        - If the phone detects only charge and Octo4a doesn't show a popup requesting serial access, you must remove the resistor from the breadboard and try with a different one. 
+        - Repeat this process until you figure it out.
+        - My case i bought a resistor kit with values from 1k Ohm to 1M (about 20 possibilities). I changed them 1 by 1 until it worked. 
+        - Just as a reference in case anyone has the same device. I used a Lenovo tab M8 (TB 8505F) and it worked with a 10k Ohm resistor!
+         
